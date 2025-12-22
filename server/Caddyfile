@@ -1,0 +1,17 @@
+# Replace translate.yourdomain.com with your real domain.
+# Caddy will automatically provision HTTPS certificates.
+#
+# If you want to lock CORS down, replace "*" with your GitHub Pages origin
+# e.g. https://YOURNAME.github.io
+
+translate.yourdomain.com {
+  encode gzip
+  reverse_proxy libretranslate:5000
+
+  header Access-Control-Allow-Origin "*"
+  header Access-Control-Allow-Methods "GET,POST,OPTIONS"
+  header Access-Control-Allow-Headers "Content-Type"
+
+  @preflight method OPTIONS
+  respond @preflight 204
+}

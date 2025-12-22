@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      - LT_LOAD_ONLY=en,zh,ko,vi,th,fr,hi
+      - LT_DISABLE_WEB_UI=true
+    expose:
+      - "5000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - libretranslate
+
+volumes:
+  caddy_data:
+  caddy_config:

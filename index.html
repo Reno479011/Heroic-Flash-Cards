@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Heroic Flashcards — Fantasy Study Arena</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2064%2064%22%3E%0A%3Cdefs%3E%0A%3ClinearGradient%20id=%22g%22%20x1=%220%22%20y1=%220%22%20x2=%221%22%20y2=%221%22%3E%0A%3Cstop%20offset=%220%22%20stop-color=%22#ffd36a%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#ff8a00%22/%3E%0A%3C/linearGradient%3E%0A%3ClinearGradient%20id=%22b%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%0A%3Cstop%20offset=%220%22%20stop-color=%22#8be9ff%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#0ea5e9%22/%3E%0A%3C/linearGradient%3E%0A%3C/defs%3E%0A%3Crect%20width=%2264%22%20height=%2264%22%20rx=%2214%22%20fill=%22#0b0f1a%22/%3E%0A%3Cpath%20d=%22M32%206c10%206%2018%204%2020%208v18c0%2014-10%2022-20%2026C22%2054%2012%2046%2012%2032V14c2-4%2010-2%2020-8z%22%0A%20fill=%22rgba(255,255,255,0.04)%22%20stroke=%22url(#g)%22%20stroke-width=%222%22/%3E%0A%3C!--%20sword%20--%3E%0A%3Cpath%20d=%22M39%2014l11%2011-4%204-3-3-7%207%203%203-4%204-11-11%204-4%203%203%207-7-3-3z%22%0A%20fill=%22url(#b)%22%20opacity=%220.95%22/%3E%0A%3C!--%20shield%20gloss%20--%3E%0A%3Cpath%20d=%22M20%2018c4-1%208-3%2012-6%204%203%208%205%2012%206v12c0%2010-7%2016-12%2018-5-2-12-8-12-18z%22%0A%20fill=%22rgba(255,255,255,0.06)%22/%3E%0A%3C/svg%3E"/>
+
+  
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="app" id="app" data-theme="dark">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="title">Heroic Flashcards</div>
+        <div class="subtitle">Fantasy Study Space made by Reno</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <select class="select" id="deckSelect" title="Deck"></select>
+      <button class="btn small primary" id="btnImport">Import (wipes old deck)</button>
+      <button class="btn small" id="btnExport">Export Deck</button>
+      <span class="pill" id="pillCount">0 cards</span>
+      
+<select class="select" id="musicStyle" title="Music style">
+  <option value="auto">Music: Auto</option>
+  <option value="bard">Bardcore</option>
+  <option value="fantasy">Fantasy</option>
+  <option value="futuristic">Futuristic</option>
+  <option value="edm">EDM</option>
+  <option value="japan">Japanese Traditional</option>
+  <option value="chinese">Chinese Traditional</option>
+  <option value="middleeast">Middle Eastern</option>
+  <option value="egypt">Egyptian</option>
+  <option value="cryptic">Dark Cryptic</option>
+  <option value="rb">R&B</option>
+  <option value="drillas">Drillas</option>
+</select>
+<button class="btn small" id="btnYouTube">YouTube</button>
+      <button class="btn small" id="btnTheme">Light/Dark</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <div class="leftHeader">
+        <div class="row">
+          <input class="input" id="search" placeholder="Search cards… (front/back)" style="flex:1"/>
+          <button class="btn small" id="btnShuffle" title="Shuffle cards">Shuffle</button>
+        </div>
+        <div class="row">
+          <span class="stat" id="progressStat">—</span>
+        </div>
+      </div>
+      <div class="leftBody" id="cardList"></div>
+    </div>
+
+    <div class="right">
+      <div class="modebar">
+        <div class="tab active" data-mode="flash">Flashcards</div>
+        <div class="tab" data-mode="learn">Learn</div>
+        <div class="tab" data-mode="test">Test</div>
+        <div class="tab" data-mode="match">Match</div>
+        <div class="tab" data-mode="time">Time Attack</div>
+        <div class="tab" data-mode="rpg">RPG Battle</div>
+        <span class="pill" id="modeHelp" style="margin-left:auto;">Tip: <span class="kbd">Space</span> flip • <span class="kbd">1</span>-<span class="kbd">4</span> choose</span>
+      </div>
+
+      
+<div class="content">
+  <div class="stageWrap" id="stageWrap">
+    <div class="stage" id="stage"></div>
+
+    <div class="ttsDock" id="ttsDock">
+      <select class="select ttsAccent" id="ttsAccent" title="Accent / Voice">
+        <option value="auto">Accent: Auto</option>
+        <option value="zh">Chinese</option>
+        <option value="ko">Korean</option>
+        <option value="vi">Vietnamese</option>
+        <option value="th">Thai</option>
+        <option value="fr">French</option>
+        <option value="in">Indian</option>
+      </select>
+      <button class="btn small ttsSpeak" id="ttsSpeakPrompt" title="Speak prompt">🔊 Speak</button>
+      <button class="btn small ttsSample" id="ttsSampleVoice" title="Preview voice pack sample">🎤 Sample</button>
+      <div class="txBox" id="txBox" title="Translate + pronounce (internet required)">
+        <div class="txHdr">
+          <div class="txTitle">Translate</div>
+          <span class="txTag" id="txTag">Live</span>
+        </div>
+
+        <textarea class="input txInput" id="txInput" rows="2" placeholder="Type a word or phrase… (Ctrl+Enter = translate)"></textarea>
+
+        <div class="txRow">
+          <select class="select txSel" id="txFrom" title="From">
+            <option value="auto">From: Auto</option>
+            <option value="en">English</option>
+            <option value="zh">Chinese</option>
+            <option value="ko">Korean</option>
+            <option value="vi">Vietnamese</option>
+            <option value="th">Thai</option>
+            <option value="fr">French</option>
+            <option value="hi">Hindi</option>
+          </select>
+          <select class="select txSel" id="txTo" title="To">
+            <option value="en">To: English</option>
+            <option value="zh">To: Chinese</option>
+            <option value="ko">To: Korean</option>
+            <option value="vi">To: Vietnamese</option>
+            <option value="th">To: Thai</option>
+            <option value="fr">To: French</option>
+            <option value="hi">To: Hindi</option>
+          </select>
+        </div>
+
+        <div class="txRow">
+          <button class="btn small" id="txTranslate">🌐 Translate</button>
+          <button class="btn small" id="txSpeakIn" title="Speak what you typed">🔊</button>
+          <button class="btn small" id="txSpeakOut" title="Speak translated result">🗣️</button>
+        </div>
+
+        <div class="txOut" id="txOut" aria-live="polite"></div>
+        <div class="txHint" id="txHint"></div>
+
+        <details class="txMore">
+          <summary>Provider</summary>
+          <div class="txRow" style="margin-top:8px;">
+            <select class="select txSel" id="txProvider" title="Translation provider">
+  <option value="libre">LibreTranslate (self-host)</option>
+</select>
+          </div>
+
+          <div class="txRow" style="margin-top:8px;">
+            <input class="input" id="txEndpoint" placeholder="LibreTranslate endpoint (https://YOUR_DOMAIN/translate) — required for GitHub Pages" style="flex:1"/>
+          </div>
+
+          <div class="txRow" style="margin-top:8px;">
+          </div>
+        </details>
+      </div>
+
+    </div>
+
+    <button class="ttsAnswerPill" id="ttsAnswerPill" title="Speak answer">🔊</button>
+  </div>
+</div>
+
+    </div>
+  </div>
+</div>
+
+<!-- YouTube background -->
+<div class="ytOverlayControls" id="ytControls">
+  <button class="btn small" id="ytToggleVisible">Show</button>
+  <button class="btn small" id="ytPlayPause">Play</button>
+  <button class="btn small" id="ytMute">Mute</button>
+  <input class="input" id="ytVol" type="range" min="0" max="100" value="25" style="width:120px">
+</div>
+<div class="ytWrap" id="ytWrap"><div id="ytPlayer"></div></div>
+
+<!-- Modal -->
+<div class="modalWrap" id="modalWrap" aria-hidden="true">
+  <div class="modal">
+    <div class="modalHeader">
+      <div style="font-weight:950" id="modalTitle">Modal</div>
+      <button class="btn small" id="modalClose">Close</button>
+    </div>
+    <div class="modalBody" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Libraries (CDN). For 100% offline: download locally and replace these src URLs. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
+
+<script src="assets/js/app.js"></script>
+<script src="assets/js/runeAddonV23.js"></script>
+
+
+</body>
+</html>
