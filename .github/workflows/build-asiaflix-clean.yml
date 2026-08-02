@@ -7,6 +7,12 @@ on:
     paths:
       - 'asiaflix-clean-shell/**'
       - '.github/workflows/build-asiaflix-clean.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'asiaflix-clean-shell/**'
+      - '.github/workflows/build-asiaflix-clean.yml'
   workflow_dispatch:
 
 permissions:
