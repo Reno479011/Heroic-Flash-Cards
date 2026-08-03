@@ -1,0 +1,43 @@
+name: Export Asia Flix Canonical Source
+
+on:
+  push:
+    branches:
+      - asiaflix-clean-shell
+    paths:
+      - '.github/workflows/export-canonical-source.yml'
+      - 'asiaflix-clean-shell/tools/canonical_payload/**'
+      - 'asiaflix-clean-shell/tools/install_canonical_v2.py'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/export-canonical-source.yml'
+      - 'asiaflix-clean-shell/tools/canonical_payload/**'
+      - 'asiaflix-clean-shell/tools/install_canonical_v2.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode canonical source
+        run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
+      - name: Upload decoded release source and tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asia-Flix-v2-canonical-source
+          path: |
+            asiaflix-clean-shell/app/src/main/java/org/asiaflix/clean/
+            asiaflix-clean-shell/app/src/main/assets/
+            asiaflix-clean-shell/app/src/test/
+            asiaflix-clean-shell/app/src/androidTest/
+            asiaflix-clean-shell/app/src/main/AndroidManifest.xml
+            asiaflix-clean-shell/app/build.gradle
+            asiaflix-clean-shell/tools/verify_canonical_release.py
+          if-no-files-found: error
+          retention-days: 14
