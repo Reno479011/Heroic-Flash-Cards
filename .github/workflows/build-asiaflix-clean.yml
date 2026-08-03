@@ -93,11 +93,18 @@ jobs:
 
   mobile-functional-test:
     needs: build-and-unit-test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Check out canonical source
         uses: actions/checkout@v4
+
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 666 /dev/kvm || true
 
       - name: Install canonical v2 source tree
         run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
@@ -143,11 +150,18 @@ jobs:
 
   android-tv-smoke-test:
     needs: build-and-unit-test
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - name: Check out canonical source
         uses: actions/checkout@v4
+
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 666 /dev/kvm || true
 
       - name: Install canonical v2 source tree
         run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
@@ -168,7 +182,7 @@ jobs:
         with:
           api-level: 34
           target: android-tv
-          arch: x86_64
+          arch: x86
           profile: TV (1080p)
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
