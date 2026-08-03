@@ -1,0 +1,206 @@
+name: Build and Verify Asia Flix 2.2 TV Fullscreen
+
+on:
+  push:
+    branches:
+      - asiaflix-clean-shell
+    paths:
+      - 'asiaflix-clean-shell/**'
+      - '.github/workflows/build-asiaflix-v22-tv-fullscreen.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'asiaflix-clean-shell/**'
+      - '.github/workflows/build-asiaflix-v22-tv-fullscreen.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install canonical v2.1 source
+        run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
+
+      - name: Install v2.2 instant TV fullscreen source
+        run: python3 asiaflix-clean-shell/tools/install_v22_tv_fullscreen.py
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and signing tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Verify v2.2 feature matrix and JavaScript syntax
+        working-directory: asiaflix-clean-shell
+        run: |
+          node --check app/src/main/assets/asiaflix_bridge.js
+          python3 tools/verify_canonical_release.py
+
+      - name: Run JVM regression tests
+        working-directory: asiaflix-clean-shell
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Build debug, instrumentation, and signed release APKs
+        working-directory: asiaflix-clean-shell
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Verify package, permissions, TV launcher, and signature
+        run: |
+          RELEASE='asiaflix-clean-shell/app/build/outputs/apk/release/app-release.apk'
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RELEASE" | tee release-signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RELEASE" | tee release-badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$RELEASE" | tee release-permissions.txt
+          grep -q "package: name='org.asiaflix.clean' versionCode='22' versionName='2.2.0'" release-badging.txt
+          grep -q '^leanback-launchable-activity:' release-badging.txt
+          ! grep -q 'android.permission.POST_NOTIFICATIONS' release-permissions.txt
+          ! grep -q 'android.permission.SYSTEM_ALERT_WINDOW' release-permissions.txt
+          ! grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' release-permissions.txt
+          mkdir -p out
+          cp "$RELEASE" out/Asia_Flix_Onn4K_Instant_Fullscreen_v2.2.apk
+          sha256sum out/Asia_Flix_Onn4K_Instant_Fullscreen_v2.2.apk | tee out/SHA256.txt
+
+      - name: Upload compiled build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asia-Flix-v2.2-build
+          path: |
+            out/
+            asiaflix-clean-shell/app/build/outputs/apk/debug/app-debug.apk
+            asiaflix-clean-shell/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            release-signature.txt
+            release-badging.txt
+            release-permissions.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  android-tv-fullscreen-test:
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo chmod 666 /dev/kvm || true
+
+      - name: Install canonical v2.1 source
+        run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
+
+      - name: Install v2.2 instant TV fullscreen source
+        run: python3 asiaflix-clean-shell/tools/install_v22_tv_fullscreen.py
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Run Android TV 1080p fullscreen, selector, and seek suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            set +e
+            mkdir -p tv-v22-evidence
+            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace "-Pandroid.testInstrumentationRunnerArguments.class=org.asiaflix.clean.MainActivityInstrumentedTest#harnessRemovesXmAndMovesBlueTvFocus,org.asiaflix.clean.MainActivityInstrumentedTest#tvVideoSelectionImmediatelyUsesFullScreenStageAndRemoteSeek,org.asiaflix.clean.MainActivityInstrumentedTest#fullscreenDpadHoldAcceleratesForOnnRemote,org.asiaflix.clean.AsiaFlixLiveInstrumentedTest#forcedTvModeHasPersistentBlueSelectionOnLivePage,org.asiaflix.clean.AsiaFlixLiveInstrumentedTest#livePageBlocksAdvertisementApiAndSeeksRealJwVideo"
+            STATUS=$?
+            adb shell monkey -p org.asiaflix.clean -c android.intent.category.LEANBACK_LAUNCHER 1 >/dev/null 2>&1 || true
+            sleep 12
+            adb logcat -d > tv-v22-evidence/tv-logcat.txt 2>&1 || true
+            adb exec-out screencap -p > tv-v22-evidence/tv-final.png 2>/dev/null || true
+            adb shell dumpsys activity activities > tv-v22-evidence/tv-activities.txt 2>&1 || true
+            adb shell dumpsys window > tv-v22-evidence/tv-window.txt 2>&1 || true
+            adb pull /sdcard/asiaflix-tv-instant-player-fullscreen.png tv-v22-evidence/asiaflix-tv-instant-player-fullscreen.png >/dev/null 2>&1 || true
+            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' tv-v22-evidence/tv-logcat.txt; then STATUS=1; fi
+            exit "$STATUS"
+
+      - name: Upload Android TV fullscreen evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asia-Flix-v2.2-TV-fullscreen-evidence
+          path: |
+            asiaflix-clean-shell/app/build/reports/androidTests/connected/
+            asiaflix-clean-shell/app/build/outputs/androidTest-results/connected/
+            tv-v22-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  release-gate:
+    needs: [build-and-verify, android-tv-fullscreen-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: Asia-Flix-v2.2-build
+          path: verified
+
+      - name: Assemble verified Onn 4K release
+        run: |
+          mkdir -p final
+          cp verified/out/Asia_Flix_Onn4K_Instant_Fullscreen_v2.2.apk final/
+          cp verified/out/SHA256.txt final/
+          cp verified/release-signature.txt final/
+          cp verified/release-badging.txt final/
+          cp verified/release-permissions.txt final/
+          cat > final/Asia_Flix_Onn4K_Instant_Fullscreen_v2.2_Report.txt <<'REPORT'
+          Asia Flix v2.2 Android TV fullscreen release gate passed.
+
+          Verified behaviors:
+          - Selecting a player on Android TV immediately enters a full-viewport black theater stage.
+          - Native HTML fullscreen is attempted and the full-viewport fallback remains available when a host denies it.
+          - The Android window switches to immersive landscape and hides system bars.
+          - Back exits playback fullscreen before leaving the page.
+          - Blue show/movie/option selector remains available outside playback.
+          - D-pad seek, hold acceleration, Center/OK, and live JW video seek tests passed.
+          - XM advertisement endpoint blocking remains present.
+          - Leanback launcher, package, permissions, archive, and APK signature checks passed.
+
+          Device note:
+          Verification used an Android TV 1080p hardware-accelerated emulator. Final acceptance on a physical Onn 4K Streaming Box is still recommended.
+          REPORT
+
+      - name: Upload verified Onn 4K APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asia-Flix-v2.2-Onn4K-Instant-Fullscreen-Verified
+          path: final/
+          if-no-files-found: error
+          retention-days: 30
