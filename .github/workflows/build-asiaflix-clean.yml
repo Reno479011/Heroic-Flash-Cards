@@ -39,6 +39,10 @@ jobs:
         working-directory: asiaflix-clean-shell
         run: python3 tools/apply_v1_6_stability_patch.py
 
+      - name: Restore persistent v1.7 TV selector
+        working-directory: asiaflix-clean-shell
+        run: python3 tools/apply_v1_7_focus_restore.py
+
       - name: Correct Android callback visibility
         run: |
           sed -i 's/protected void onWindowFocusChanged/public void onWindowFocusChanged/' \
@@ -73,13 +77,13 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
           mkdir -p out
-          cp "$APK" out/Asia_Flix_Clean_Onn4K_TV_v1.6.apk
-          sha256sum out/Asia_Flix_Clean_Onn4K_TV_v1.6.apk | tee out/SHA256.txt
+          cp "$APK" out/Asia_Flix_Clean_Onn4K_TV_v1.7.apk
+          sha256sum out/Asia_Flix_Clean_Onn4K_TV_v1.7.apk | tee out/SHA256.txt
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-Clean-Onn4K-TV-v1.6
+          name: Asia-Flix-Clean-Onn4K-TV-v1.7
           path: out/
           if-no-files-found: error
           retention-days: 30
