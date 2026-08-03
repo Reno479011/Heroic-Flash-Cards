@@ -135,20 +135,7 @@ jobs:
           profile: tv_1080p
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            set +e
-            mkdir -p tv-v22-evidence
-            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace "-Pandroid.testInstrumentationRunnerArguments.class=org.asiaflix.clean.MainActivityInstrumentedTest#harnessRemovesXmAndMovesBlueTvFocus,org.asiaflix.clean.MainActivityInstrumentedTest#tvVideoSelectionImmediatelyUsesFullScreenStageAndRemoteSeek,org.asiaflix.clean.MainActivityInstrumentedTest#fullscreenDpadHoldAcceleratesForOnnRemote,org.asiaflix.clean.AsiaFlixLiveInstrumentedTest#forcedTvModeHasPersistentBlueSelectionOnLivePage,org.asiaflix.clean.AsiaFlixLiveInstrumentedTest#livePageBlocksAdvertisementApiAndSeeksRealJwVideo"
-            STATUS=$?
-            adb shell monkey -p org.asiaflix.clean -c android.intent.category.LEANBACK_LAUNCHER 1 >/dev/null 2>&1 || true
-            sleep 12
-            adb logcat -d > tv-v22-evidence/tv-logcat.txt 2>&1 || true
-            adb exec-out screencap -p > tv-v22-evidence/tv-final.png 2>/dev/null || true
-            adb shell dumpsys activity activities > tv-v22-evidence/tv-activities.txt 2>&1 || true
-            adb shell dumpsys window > tv-v22-evidence/tv-window.txt 2>&1 || true
-            adb pull /sdcard/asiaflix-tv-instant-player-fullscreen.png tv-v22-evidence/asiaflix-tv-instant-player-fullscreen.png >/dev/null 2>&1 || true
-            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' tv-v22-evidence/tv-logcat.txt; then STATUS=1; fi
-            exit "$STATUS"
+          script: bash asiaflix-clean-shell/tools/run_v22_tv_fullscreen_suite.sh
 
       - name: Upload Android TV fullscreen evidence
         if: always()
