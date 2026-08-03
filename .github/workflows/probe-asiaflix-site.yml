@@ -1,0 +1,69 @@
+name: Probe Asia Flix Site
+
+on:
+  push:
+    branches:
+      - asiaflix-clean-shell
+    paths:
+      - 'asiaflix-clean-shell/tools/probe_site.py'
+      - '.github/workflows/probe-asiaflix-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Selenium
+        run: pip install --disable-pip-version-check selenium==4.35.0
+
+      - name: Confirm browser tools
+        run: |
+          google-chrome --version || chromium --version
+          chromedriver --version || true
+
+      - name: Probe live website, ad DOM, and player frames
+        working-directory: asiaflix-clean-shell
+        env:
+          PROBE_OUT: probe
+        run: python3 tools/probe_site.py
+
+      - name: Summarize detected XM and player hosts
+        working-directory: asiaflix-clean-shell
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, urllib.parse
+          hosts = set()
+          xm = []
+          for path in pathlib.Path('probe').glob('*.json'):
+              data = json.loads(path.read_text())
+              for req in data.get('requests', []):
+                  host = urllib.parse.urlparse(req.get('url','')).hostname
+                  if host:
+                      hosts.add(host)
+              for item in data.get('dom', {}).get('suspicious', []):
+                  xm.append((path.name, item.get('tag'), item.get('mark','')[:250]))
+          print('NETWORK HOSTS')
+          for host in sorted(hosts): print(host)
+          print('\nXM DOM MATCHES')
+          for row in xm[:100]: print(row)
+          PY
+
+      - name: Upload probe results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asia-Flix-Live-Site-Probe
+          path: asiaflix-clean-shell/probe/
+          if-no-files-found: error
+          retention-days: 14
