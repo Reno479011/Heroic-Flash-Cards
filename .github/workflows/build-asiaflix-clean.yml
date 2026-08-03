@@ -39,6 +39,10 @@ jobs:
         working-directory: asiaflix-clean-shell
         run: python3 tools/apply_v1_5_player_patch.py
 
+      - name: Fix v1.5 hold runnable order
+        working-directory: asiaflix-clean-shell
+        run: python3 tools/fix_v1_5_forward_reference.py
+
       - name: Correct Android callback visibility
         run: |
           sed -i 's/protected void onWindowFocusChanged/public void onWindowFocusChanged/' \
