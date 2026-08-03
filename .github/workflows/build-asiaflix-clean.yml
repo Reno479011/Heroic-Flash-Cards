@@ -1,4 +1,4 @@
-name: Build and Verify Asia Flix 2.0
+name: Build and Verify Asia Flix 2.1
 
 on:
   push:
@@ -21,12 +21,12 @@ permissions:
 jobs:
   build-and-unit-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Check out canonical source
         uses: actions/checkout@v4
 
-      - name: Install canonical v2 source tree
+      - name: Install canonical v2.1 source tree
         run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
 
       - name: Set up Java 17
@@ -38,7 +38,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android platform
+      - name: Install Android platform and signing tools
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
@@ -48,7 +48,7 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Verify canonical feature matrix
+      - name: Verify canonical feature matrix and JavaScript syntax
         working-directory: asiaflix-clean-shell
         run: |
           node --check app/src/main/assets/asiaflix_bridge.js
@@ -58,43 +58,48 @@ jobs:
         working-directory: asiaflix-clean-shell
         run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
 
-      - name: Build debug and signed release APKs
+      - name: Build debug, instrumentation, and signed release APKs
         working-directory: asiaflix-clean-shell
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --no-daemon --stacktrace
 
-      - name: Verify package, permissions, TV launcher, and signature
+      - name: Verify package, permissions, TV launcher, SDK absence, and signature
         run: |
+          set -euo pipefail
           RELEASE='asiaflix-clean-shell/app/build/outputs/apk/release/app-release.apk'
           DEBUG='asiaflix-clean-shell/app/build/outputs/apk/debug/app-debug.apk'
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$RELEASE" | tee release-signature.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RELEASE" | tee release-badging.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$RELEASE" | tee release-permissions.txt
-          grep -q "package: name='org.asiaflix.clean' versionCode='20' versionName='2.0.0'" release-badging.txt
+          unzip -l "$RELEASE" | tee release-archive.txt
+          grep -q "package: name='org.asiaflix.clean' versionCode='21' versionName='2.1.0'" release-badging.txt
           grep -q '^leanback-launchable-activity:' release-badging.txt
-          ! grep -q 'android.permission.POST_NOTIFICATIONS' release-permissions.txt
+          ! grep -E 'POST_NOTIFICATIONS|SYSTEM_ALERT_WINDOW|REQUEST_INSTALL_PACKAGES|QUERY_ALL_PACKAGES|BIND_ACCESSIBILITY_SERVICE' release-permissions.txt
+          ! grep -Ei 'appsgeyser|appodeal|applovin|admob|ironsource|pangle' release-archive.txt
           mkdir -p out
-          cp "$RELEASE" out/Asia_Flix_Final_Onn4K_Mobile_v2.0.apk
-          cp "$DEBUG" out/Asia_Flix_Final_Onn4K_Mobile_v2.0-debug.apk
+          cp "$RELEASE" out/Asia_Flix_Final_Onn4K_Mobile_v2.1.apk
+          cp "$DEBUG" out/Asia_Flix_Final_Onn4K_Mobile_v2.1-debug.apk
           sha256sum out/*.apk | tee out/SHA256.txt
 
       - name: Upload build for emulator jobs
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-v2-build
+          name: Asia-Flix-v2.1-build
           path: |
             asiaflix-clean-shell/app/build/outputs/apk/debug/app-debug.apk
             asiaflix-clean-shell/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            asiaflix-clean-shell/app/build/reports/tests/testDebugUnitTest/
             out/
             release-signature.txt
             release-badging.txt
             release-permissions.txt
+            release-archive.txt
           if-no-files-found: error
           retention-days: 30
 
   mobile-functional-test:
     needs: build-and-unit-test
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - name: Check out canonical source
         uses: actions/checkout@v4
@@ -106,7 +111,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo chmod 666 /dev/kvm || true
 
-      - name: Install canonical v2 source tree
+      - name: Install canonical v2.1 source tree
         run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
 
       - name: Set up Java 17
@@ -120,7 +125,7 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Run mobile emulator functional suite
+      - name: Run Pixel 6 / Android 15 functional and live-player suite
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -129,28 +134,24 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: |
-            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace
-            adb logcat -d > mobile-logcat.txt
-            adb exec-out screencap -p > mobile-final.png
-            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' mobile-logcat.txt; then exit 1; fi
+          script: bash asiaflix-clean-shell/tools/run_mobile_emulator_suite.sh
 
-      - name: Upload mobile evidence
+      - name: Upload mobile test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-v2-mobile-functional-evidence
+          name: Asia-Flix-v2.1-mobile-functional-evidence
           path: |
             asiaflix-clean-shell/app/build/reports/androidTests/connected/
-            mobile-logcat.txt
-            mobile-final.png
+            asiaflix-clean-shell/app/build/outputs/androidTest-results/connected/
+            mobile-evidence/
           if-no-files-found: warn
           retention-days: 30
 
-  android-tv-smoke-test:
+  android-tv-functional-test:
     needs: build-and-unit-test
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - name: Check out canonical source
         uses: actions/checkout@v4
@@ -162,7 +163,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo chmod 666 /dev/kvm || true
 
-      - name: Install canonical v2 source tree
+      - name: Install canonical v2.1 source tree
         run: python3 asiaflix-clean-shell/tools/install_canonical_v2.py
 
       - name: Set up Java 17
@@ -176,7 +177,7 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Run Android TV D-pad and selector test
+      - name: Run Android TV 1080p Onn-style D-pad, focus, ad, and seek suite
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -185,72 +186,82 @@ jobs:
           profile: tv_1080p
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=org.asiaflix.clean.MainActivityInstrumentedTest#harnessRemovesXmAndMovesBlueTvFocus,org.asiaflix.clean.MainActivityInstrumentedTest#fullscreenDpadHoldAcceleratesForOnnRemote
-            adb shell monkey -p org.asiaflix.clean -c android.intent.category.LEANBACK_LAUNCHER 1
-            sleep 18
-            adb shell input keyevent 22
-            adb shell input keyevent 20
-            adb shell input keyevent 23
-            sleep 4
-            adb logcat -d > tv-logcat.txt
-            adb exec-out screencap -p > tv-final.png
-            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' tv-logcat.txt; then exit 1; fi
+          script: bash asiaflix-clean-shell/tools/run_tv_emulator_suite.sh
 
-      - name: Upload TV evidence
+      - name: Upload Android TV test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-v2-TV-functional-evidence
+          name: Asia-Flix-v2.1-TV-functional-evidence
           path: |
             asiaflix-clean-shell/app/build/reports/androidTests/connected/
-            tv-logcat.txt
-            tv-final.png
+            asiaflix-clean-shell/app/build/outputs/androidTest-results/connected/
+            tv-evidence/
           if-no-files-found: warn
           retention-days: 30
 
   release-gate:
-    needs: [build-and-unit-test, mobile-functional-test, android-tv-smoke-test]
+    needs: [build-and-unit-test, mobile-functional-test, android-tv-functional-test]
     runs-on: ubuntu-latest
     steps:
-      - name: Download verified build
+      - name: Download verified APK build
         uses: actions/download-artifact@v4
         with:
-          name: Asia-Flix-v2-build
-          path: verified
+          name: Asia-Flix-v2.1-build
+          path: verified/build
 
-      - name: Assemble final verification report
+      - name: Download mobile functional evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: Asia-Flix-v2.1-mobile-functional-evidence
+          path: verified/mobile
+
+      - name: Download Android TV functional evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: Asia-Flix-v2.1-TV-functional-evidence
+          path: verified/tv
+
+      - name: Assemble final gated release and report
         run: |
-          mkdir -p final
-          cp verified/out/Asia_Flix_Final_Onn4K_Mobile_v2.0.apk final/
-          cp verified/out/SHA256.txt final/
-          cp verified/release-signature.txt final/
-          cp verified/release-badging.txt final/
-          cp verified/release-permissions.txt final/
-          cat > final/Asia_Flix_Final_v2.0_Verification.txt <<'REPORT'
-          Asia Flix Final v2.0 release gate passed.
+          set -euo pipefail
+          mkdir -p final/evidence/mobile final/evidence/tv
+          cp verified/build/out/Asia_Flix_Final_Onn4K_Mobile_v2.1.apk final/
+          cp verified/build/out/SHA256.txt final/
+          cp verified/build/release-signature.txt final/
+          cp verified/build/release-badging.txt final/
+          cp verified/build/release-permissions.txt final/
+          cp verified/build/release-archive.txt final/
+          cp -R verified/mobile/. final/evidence/mobile/
+          cp -R verified/tv/. final/evidence/tv/
+          cat > final/Asia_Flix_Final_v2.1_Verification.txt <<'REPORT'
+          Asia Flix Final v2.1 release gate passed.
 
-          Required feature checks:
-          - Canonical source build; no legacy patch scripts.
-          - First-party /api/advertisements blocked with an empty JSON response.
-          - XM fallback DOM removal and empty advertisement-slot collapse.
-          - Persistent blue Android TV selector.
-          - Mobile fullscreen custom-view lifecycle and Back restoration.
-          - Double-tap 10-second seeking.
-          - Hold acceleration: 10 seconds, 30 seconds, 1 minute, then 2 minutes.
-          - Player timeline/control region passes through untouched.
-          - Onn-style D-pad seek, play/pause, navigation, and Leanback launcher.
-          - Popup, external browser, Play Store intent, notification, and permission blocking.
-          - JVM tests, mobile emulator functional tests, Android TV emulator tests, APK signature, package, and permission scans passed.
+          Verified from one canonical source tree:
+          - First-party /api/advertisements and /api/advertisements/ responses blocked before the XM banner can render.
+          - Surgical XM fallback removal and advertisement-slot collapse without deleting movie/player containers.
+          - Persistent large blue focus outline for shows, movies, episodes, menus, buttons, and player choices.
+          - Android TV geometric D-pad navigation and Leanback launcher behavior.
+          - Onn-style Center/OK, play/pause, rewind, fast-forward, D-pad hold, and media-key routing.
+          - Double-tap left/right performs one 10-second seek.
+          - Hold seeking accelerates through 10 seconds, 30 seconds, 1 minute, and 2 minutes.
+          - Native player timeline/control region is passed through without gesture interception.
+          - Mobile native custom-view fullscreen, sensor landscape, Back exit, orientation restore, and selector restore.
+          - Popup, custom-intent, Google Play, outside-browser, notification, overlay, accessibility, and install-package paths absent or blocked.
+          - No AppsGeyser or advertising SDK package found in the release archive.
+          - JVM regression tests passed.
+          - Pixel 6 Android 15 emulator functional and live-player tests passed with screenshots and logcat evidence.
+          - Android TV 1080p API 34 emulator focus, ad-removal, seek, D-pad, and Leanback tests passed with screenshots and logcat evidence.
+          - APK package, version, permissions, Android TV launcher, archive, and signature scans passed.
 
-          Limitation:
-          Emulator verification is not a substitute for final acceptance testing on a physical Onn 4K Streaming Box and Galaxy S23+.
+          Physical-device limitation:
+          The environment cannot physically operate a Walmart Onn 4K Streaming Box or Galaxy S23+. The release was tested on hardware-accelerated Android phone and Android TV emulators. Final acceptance on those two physical devices remains necessary.
           REPORT
 
-      - name: Upload gated final release
+      - name: Upload final gated release
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-Final-v2.0-Verified
+          name: Asia-Flix-Final-v2.1-Verified
           path: final/
           if-no-files-found: error
           retention-days: 30
