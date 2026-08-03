@@ -130,11 +130,10 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            cd asiaflix-clean-shell
-            gradle :app:connectedDebugAndroidTest --no-daemon --stacktrace
-            adb logcat -d > ../mobile-logcat.txt
-            adb exec-out screencap -p > ../mobile-final.png
-            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' ../mobile-logcat.txt; then exit 1; fi
+            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace
+            adb logcat -d > mobile-logcat.txt
+            adb exec-out screencap -p > mobile-final.png
+            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' mobile-logcat.txt; then exit 1; fi
 
       - name: Upload mobile evidence
         if: always()
@@ -187,18 +186,16 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: |
-            cd asiaflix-clean-shell
-            gradle :app:connectedDebugAndroidTest --no-daemon --stacktrace \
-              -Pandroid.testInstrumentationRunnerArguments.class=org.asiaflix.clean.MainActivityInstrumentedTest#harnessRemovesXmAndMovesBlueTvFocus,org.asiaflix.clean.MainActivityInstrumentedTest#fullscreenDpadHoldAcceleratesForOnnRemote
+            gradle -p asiaflix-clean-shell :app:connectedDebugAndroidTest --no-daemon --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=org.asiaflix.clean.MainActivityInstrumentedTest#harnessRemovesXmAndMovesBlueTvFocus,org.asiaflix.clean.MainActivityInstrumentedTest#fullscreenDpadHoldAcceleratesForOnnRemote
             adb shell monkey -p org.asiaflix.clean -c android.intent.category.LEANBACK_LAUNCHER 1
             sleep 18
             adb shell input keyevent 22
             adb shell input keyevent 20
             adb shell input keyevent 23
             sleep 4
-            adb logcat -d > ../tv-logcat.txt
-            adb exec-out screencap -p > ../tv-final.png
-            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' ../tv-logcat.txt; then exit 1; fi
+            adb logcat -d > tv-logcat.txt
+            adb exec-out screencap -p > tv-final.png
+            if grep -E 'FATAL EXCEPTION|ANR in org\.asiaflix\.clean' tv-logcat.txt; then exit 1; fi
 
       - name: Upload TV evidence
         if: always()
