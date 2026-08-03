@@ -35,13 +35,9 @@ jobs:
         working-directory: asiaflix-clean-shell
         run: python3 tools/apply_v1_4_navigator_patch.py
 
-      - name: Add v1.5 timeline and accelerated seeking
+      - name: Apply v1.6 player stability rollback
         working-directory: asiaflix-clean-shell
-        run: python3 tools/apply_v1_5_player_patch.py
-
-      - name: Fix v1.5 hold runnable order
-        working-directory: asiaflix-clean-shell
-        run: python3 tools/fix_v1_5_forward_reference.py
+        run: python3 tools/apply_v1_6_stability_patch.py
 
       - name: Correct Android callback visibility
         run: |
@@ -77,13 +73,13 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
           mkdir -p out
-          cp "$APK" out/Asia_Flix_Clean_Onn4K_TV_v1.5.apk
-          sha256sum out/Asia_Flix_Clean_Onn4K_TV_v1.5.apk | tee out/SHA256.txt
+          cp "$APK" out/Asia_Flix_Clean_Onn4K_TV_v1.6.apk
+          sha256sum out/Asia_Flix_Clean_Onn4K_TV_v1.6.apk | tee out/SHA256.txt
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-Clean-Onn4K-TV-v1.5
+          name: Asia-Flix-Clean-Onn4K-TV-v1.6
           path: out/
           if-no-files-found: error
           retention-days: 30
