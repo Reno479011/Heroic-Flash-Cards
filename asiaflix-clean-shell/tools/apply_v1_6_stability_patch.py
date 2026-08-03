@@ -45,7 +45,8 @@ sub_once(
 )
 
 # Clear the direct blue focus while an HTML5 video is actually playing. Restore it
-# only after playback pauses/ends and the user navigates again.
+# only after playback pauses/ends and the user navigates again. Preserve the original
+# click-handler declaration using an explicit regex backreference.
 sub_once(
     r"(              document\.addEventListener\('click',function\(event\)\{)",
     """              document.addEventListener('play',function(event){
@@ -56,7 +57,7 @@ sub_once(
               },true);
               document.addEventListener('webkitbeginfullscreen',function(){ clearVisualFocus(); },true);
 
-\1""",
+""" + r"\1",
     "playback focus cleanup",
     flags=0,
 )
