@@ -6,6 +6,11 @@ on:
       - asiaflix-clean-shell
     paths:
       - '.github/workflows/list-tv-images.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/list-tv-images.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,4 +24,4 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: List available TV system images
         run: |
-          sdkmanager --list | grep -E 'system-images;android-[0-9]+;(android-tv|google-tv);' | tail -n 120
+          sdkmanager --list | grep -E 'system-images;android-[0-9]+;(android-tv|google-tv);' | tail -n 160
