@@ -166,7 +166,7 @@ jobs:
       - name: Run Android TV D-pad and selector test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
           target: android-tv
           arch: x86_64
           profile: TV (1080p)
