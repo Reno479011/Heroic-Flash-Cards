@@ -70,7 +70,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$RELEASE" | tee release-badging.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump permissions "$RELEASE" | tee release-permissions.txt
           grep -q "package: name='org.asiaflix.clean' versionCode='20' versionName='2.0.0'" release-badging.txt
-          grep -q "leanback-launcher" release-badging.txt
+          grep -q '^leanback-launchable-activity:' release-badging.txt
           ! grep -q 'android.permission.POST_NOTIFICATIONS' release-permissions.txt
           mkdir -p out
           cp "$RELEASE" out/Asia_Flix_Final_Onn4K_Mobile_v2.0.apk
