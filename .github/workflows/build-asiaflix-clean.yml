@@ -27,6 +27,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Correct Android callback visibility
+        run: |
+          sed -i 's/protected void onWindowFocusChanged/public void onWindowFocusChanged/' \
+            asiaflix-clean-shell/app/src/main/java/org/asiaflix/clean/MainActivity.java
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -56,13 +61,13 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
           mkdir -p out
-          cp "$APK" out/Asia_Flix_Clean_S23_TV.apk
-          sha256sum out/Asia_Flix_Clean_S23_TV.apk | tee out/SHA256.txt
+          cp "$APK" out/Asia_Flix_Clean_Onn4K_TV_v1.2.apk
+          sha256sum out/Asia_Flix_Clean_Onn4K_TV_v1.2.apk | tee out/SHA256.txt
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: Asia-Flix-Clean-S23-TV
+          name: Asia-Flix-Clean-Onn4K-TV-v1.2
           path: out/
           if-no-files-found: error
           retention-days: 30
